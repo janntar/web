@@ -88,7 +88,7 @@
 
         <!-- Karta: Kurzy měn -->
         <div class="card">
-            <h2>Kurzy Měn (ČNB)</h2>
+            <h2>Kurzy Měn</h2>
             <div class="data-row">
                 <span>EUR / CZK:</span>
                 <span id="eur-rate" style="font-weight: bold;">Načítání...</span>
@@ -107,76 +107,72 @@
     </div>
 
     <script>
-        // 1. Nastavení aktuálního českého data na obrazovce
+        // 1. Zobrazení aktuálního českého data
         var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
 
-        // 2. Pomocná funkce pro bezpečné stahování dat přes JSONP proxy (obchází CSP restrikce webu)
-        function fetchViaJsonpProxy(targetUrl, callbackName) {
-            var proxyUrl = 'https://allorigins.win' + encodeURIComponent(targetUrl) + '&callback=' + callbackName;
+        // Pomocná funkce pro bezpečné vložení skriptu na stránku
+        function injectScript(url) {
             var script = document.createElement('script');
-            script.src = proxyUrl;
+            script.src = url;
             document.head.appendChild(script);
         }
 
-        // --- ZPRACOVÁNÍ JMENIN ---
+        // --- 2. SVÁTEK (PŘES PROXY ALLORIGINS V REŽIMU JSONP) ---
         window.handleNameday = function(response) {
             try {
                 var data = JSON.parse(response.contents);
                 document.getElementById('nameday').innerText = data.name;
             } catch(e) {
-                document.getElementById('nameday').innerText = "Chyba zpracování";
+                document.getElementById('nameday').innerText = "Chyba stahování jmenin";
             }
         };
-        fetchViaJsonpProxy('https://svatkyapi.cz', 'handleNameday');
+        injectScript('https://allorigins.win' + encodeURIComponent('https://svatkyapi.cz') + '&callback=handleNameday');
 
-
-        // --- ZPRACOVÁNÍ KURZŮ ---
-        window.handleRates = function(response) {
+        // --- 3. KURZY MĚN (PŘES NEZÁVISLÉ FRANKFURTER API, KTERÉ MÁ NATIVNÍ PODPORU PRO PROHLÍŽEČE) ---
+        async function fetchRates() {
             try {
-                var data = JSON.parse(response.contents);
-                var euroData = data.rates.find(function(r) { return r.currencyCode === 'EUR'; });
-                var usdData = data.rates.find(function(r) { return r.currencyCode === 'USD'; });
+                var res = await fetch('https://frankfurter.dev');
+                var data = await res.json();
                 
-                if (euroData && usdData) {
-                    document.getElementById('eur-rate').innerText = euroData.rate.toFixed(2) + ' Kč';
-                    document.getElementById('usd-rate').innerText = usdData.rate.toFixed(2) + ' Kč';
-                } else {
-                    document.getElementById('eur-rate').innerText = "Měny nenalezeny";
-                }
-            } catch (e) {
-                document.getElementById('eur-rate').innerText = "Chyba parsování";
-                document.getElementById('usd-rate').innerText = "Chyba parsování";
+                var czkInEur = data.rates.CZK;
+                var usdInEur = data.rates.USD;
+                var czkInUsd = czkInEur / usdInEur;
+                
+                document.getElementById('eur-rate').innerText = czkInEur.toFixed(2) + ' Kč';
+                document.getElementById('usd-rate').innerText = czkInUsd.toFixed(2) + ' Kč';
+            } catch (error) {
+                document.getElementById('eur-rate').innerText = "Chyba sítě";
+                document.getElementById('usd-rate').innerText = "Chyba sítě";
             }
-        };
-        fetchViaJsonpProxy('https://cnb.cz', 'handleRates');
+        }
+        fetchRates();
 
-
-        // --- ZPRACOVÁNÍ POČASÍ ---
-        window.handleWeather = function(response) {
+        // --- 4. PŘEDPOVĚĎ POČASÍ (PŘES OPEN-METEO, KTERÉ MÁ CIZÍ CORS POVOLENÉ) ---
+        async function fetchWeather() {
+            var container = document.getElementById('weather-data');
+            container.innerHTML = '';
+            
+            var names = ["Vřesovice", "Bartošovice", "Brno"];
+            var url = 'https://open-meteo.com';
+            
             try {
-                var data = JSON.parse(response.contents);
-                var container = document.getElementById('weather-data');
-                container.innerHTML = '';
-                
-                var names = ["Vřesovice", "Bartošovice", "Brno"];
+                var res = await fetch(url);
+                var data = await res.json();
                 
                 for (var i = 0; i < data.length; i++) {
-                    var locData = data[i];
-                    var temp = locData.current.temperature_2m;
-                    
+                    var temp = data[i].current.temperature_2m;
                     container.innerHTML += '<div class="weather-loc">' + names[i] + '</div>' +
                                            '<div class="data-row">' +
                                            '<span>Teplota:</span>' +
                                            '<span style="font-weight:bold; color:#2196f3;">' + temp + ' °C</span>' +
                                            '</div>';
                 }
-            } catch (e) {
-                document.getElementById('weather-data').innerText = "Chyba stahování počasí";
+            } catch (error) {
+                container.innerHTML = '<div class="weather-loc">Chyba stahování počasí</div>';
             }
-        };
-        var weatherTarget = 'https://open-meteo.com';
-        fetchViaJsonpProxy(weatherTarget, 'handleWeather');
+        }
+        fetchWeather();
     </script>
 </body>
 </html>

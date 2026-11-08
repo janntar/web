@@ -107,73 +107,72 @@
     </div>
 
     <script>
-// 1. Datum a Svátek v ČR
-var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
+        // 1. Datum a Svátek v ČR
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
 
-async function fetchNameday() {
-    try {
-        var res = await fetch('https://svatkyapi.cz');
-        var data = await res.json();
-        document.getElementById('nameday').innerText = data.name;
-    } catch (e) {
-        document.getElementById('nameday').innerText = "Chyba načítání";
-    }
-}
-
-// 2. Kurzy měn přes otevřené Frankfurter API (přebírá data z Evropské centrální banky/ČNB a má povolené CORS)
-async function fetchRates() {
-    try {
-        // Frankfurter API vrací kurzy vůči EUR. Základem je tedy 1 EUR.
-        var res = await fetch('https://frankfurter.dev');
-        var data = await res.json();
-        
-        var czkInEur = data.rates.CZK; // Kolik Kč stojí jedno EUR
-        var usdInEur = data.rates.USD; // Kolik USD stojí jedno EUR
-        var czkInUsd = czkInEur / usdInEur; // Výpočet Kč za jeden USD
-        
-        document.getElementById('eur-rate').innerText = czkInEur.toFixed(2) + ' Kč';
-        document.getElementById('usd-rate').innerText = czkInUsd.toFixed(2) + ' Kč';
-    } catch (error) {
-        document.getElementById('eur-rate').innerText = "Chyba";
-        document.getElementById('usd-rate').innerText = "Chyba";
-    }
-}
-
-// 3. Počasí přes Open-Meteo (správný funkční endpoint bez template literals)
-var locations = [
-    { name: "Vřesovice", lat: 49.3822, lon: 17.1408 },
-    { name: "Bartošovice", lat: 49.6706, lon: 18.0531 },
-    { name: "Brno", lat: 49.1951, lon: 16.6068 }
-];
-
-async function fetchWeather() {
-    var container = document.getElementById('weather-data');
-    container.innerHTML = '';
-    
-    for (var i = 0; i < locations.length; i++) {
-        var loc = locations[i];
-        try {
-            var url = 'https://open-meteo.com' + loc.lat + '&longitude=' + loc.lon + '&current=temperature_2m';
-            var res = await fetch(url);
-            var data = await res.json();
-            var temp = data.current.temperature_2m;
-            
-            container.innerHTML += '<div class="weather-loc">' + loc.name + '</div>' +
-                                   '<div class="data-row">' +
-                                   '<span>Teplota:</span>' +
-                                   '<span style="font-weight:bold; color:#2196f3;">' + temp + ' °C</span>' +
-                                   '</div>';
-        } catch (error) {
-            container.innerHTML += '<div class="weather-loc">' + loc.name + ': Chyba načítání</div>';
+        async function fetchNameday() {
+            try {
+                const res = await fetch('https://svatkyapi.cz/api/day');
+                const data = await res.json();
+                document.getElementById('nameday').innerText = data.name;
+            } catch {
+                document.getElementById('nameday').innerText = "Chyba načítání";
+            }
         }
-    }
-}
 
-// Spuštění všech modulů
-fetchNameday();
-fetchRates();
-fetchWeather();
+        // 2. Kurzy měn přes oficiální API ČNB + allorigins proxy kvůli CORS bloku v prohlížeči
+        async function fetchRates() {
+            try {
+                const res = await fetch('https://cnb.cz');
+                const data = await res.json();
+                const czkInEur = data.rates.CZK;
+                const usdInEur = data.rates.USD;
+                const czkInUsd = czkInEur / usdInEur;
+                
+                document.getElementById('eur-rate').innerText = czkInEur.toFixed(2) + ' Kč';
+                document.getElementById('usd-rate').innerText = czkInUsd.toFixed(2) + ' Kč';
+            } catch {
+                document.getElementById('eur-rate').innerText = "Chyba";
+                document.getElementById('usd-rate').innerText = "Chyba";
+            }
+        }
+
+        // 3. Počasí (Vřesovice, Bartošovice, Brno) přes Open-Meteo (bez registrace)
+        const locations = [
+            { name: "Vřesovice", lat: 49.3822, lon: 17.1408 },
+            { name: "Bartošovice", lat: 49.6706, lon: 18.0531 },
+            { name: "Brno", lat: 49.1951, lon: 16.6068 }
+        ];
+
+        async function fetchWeather() {
+            const container = document.getElementById('weather-data');
+            container.innerHTML = '';
+            
+            for (let loc of locations) {
+                try {
+                    // Opravená URL cesta k API a přidán chybějící symbol $ pro template literal
+                    const res = await fetch(`https://open-meteo.com{loc.lat}&longitude=${loc.lon}&current_weather=true`);
+                    const data = await res.json();
+                    const temp = data.current_weather.temperature;
+                    
+                    container.innerHTML += `
+                        <div class="weather-loc">${loc.name}</div>
+                        <div class="data-row">
+                            <span>Teplota:</span>
+                            <span style="font-weight:bold; color:#2196f3;">${temp} °C</span>
+                        </div>
+                    `;
+                } catch {
+                    container.innerHTML += `<div class="weather-loc">${loc.name}: Chyba načítání</div>`;
+                }
+            }
+        }
+
+        // Spuštění funkcí při načtení stránky
+        fetchNameday();
+        fetchRates();
+        fetchWeather();
     </script>
 </body>
 </html>

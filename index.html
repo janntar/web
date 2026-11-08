@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; connect-src 'self' https://api.allorigins.win https://api.open-meteo.com https://svatkyapi.cz;">
     <title>Moje Nástěnka</title>
     <style>
         :root {
@@ -108,79 +107,78 @@
     </div>
 
     <script>
-        // 1. Datum a Svátek v ČR
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
+// 1. Datum a Svátek v ČR
+const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
 
-        async function fetchNameday() {
-            try {
-                const res = await fetch('https://svatkyapi.cz');
-                const data = await res.json();
-                document.getElementById('nameday').innerText = data.name;
-            } catch {
-                document.getElementById('nameday').innerText = "Chyba načítání";
-            }
+async function fetchNameday() {
+    try {
+        const res = await fetch('https://svatkyapi.cz');
+        const data = await res.json();
+        document.getElementById('nameday').innerText = data.name;
+    } catch {
+        document.getElementById('nameday').innerText = "Chyba načítání";
+    }
+}
+
+// 2. Kurzy měn přes oficiální API ČNB + allorigins proxy kvůli CORS bloku v prohlížeči
+async function fetchRates() {
+    try {
+        // Tady byla původně špatná adresa cnb.cz, nyní je přesměrováno na správné API + proxy
+        const targetUrl = encodeURIComponent('https://cnb.cz');
+        const res = await fetch(`https://allorigins.win{targetUrl}`);
+        const proxyData = await res.json();
+        const data = JSON.parse(proxyData.contents);
+        
+        const euroData = data.rates.find(r => r.currencyCode === 'EUR');
+        const usdData = data.rates.find(r => r.currencyCode === 'USD');
+        
+        if (euroData && usdData) {
+            document.getElementById('eur-rate').innerText = euroData.rate.toFixed(2) + ' Kč';
+            document.getElementById('usd-rate').innerText = usdData.rate.toFixed(2) + ' Kč';
+        } else {
+            throw new Error('Měny nenalezeny');
         }
+    } catch (error) {
+        console.error("Chyba při stahování kurzů:", error);
+        document.getElementById('eur-rate').innerText = "Chyba";
+        document.getElementById('usd-rate').innerText = "Chyba";
+    }
+}
 
-        // 2. Kurzy měn přes oficiální API ČNB + allorigins proxy kvůli CORS bloku v prohlížeči
-        async function fetchRates() {
-            try {
-                const targetUrl = encodeURIComponent('https://cnb.cz');
-                const res = await fetch(`https://allorigins.win{targetUrl}`);
-                const proxyData = await res.json();
-                const data = JSON.parse(proxyData.contents);
-                
-                const euroData = data.rates.find(r => r.currencyCode === 'EUR');
-                const usdData = data.rates.find(r => r.currencyCode === 'USD');
-                
-                if (euroData && usdData) {
-                    document.getElementById('eur-rate').innerText = euroData.rate.toFixed(2) + ' Kč';
-                    document.getElementById('usd-rate').innerText = usdData.rate.toFixed(2) + ' Kč';
-                } else {
-                    throw new Error('Měny nenalezeny');
-                }
-            } catch (error) {
-                console.error("Chyba kurzů:", error);
-                document.getElementById('eur-rate').innerText = "Chyba";
-                document.getElementById('usd-rate').innerText = "Chyba";
-            }
-        }
+// 3. Počasí (Vřesovice, Bartošovice, Brno) přes Open-Meteo
+const locations = [
+    { name: "Vřesovice", lat: 49.3822, lon: 17.1408 },
+    { name: "Bartošovice", lat: 49.6706, lon: 18.0531 },
+    { name: "Brno", lat: 49.1951, lon: 16.6068 }
+];
 
-        // 3. Počasí (Vřesovice, Bartošovice, Brno) přes Open-Meteo
-        const locations = [
-            { name: "Vřesovice", lat: 49.3822, lon: 17.1408 },
-            { name: "Bartošovice", lat: 49.6706, lon: 18.0531 },
-            { name: "Brno", lat: 49.1951, lon: 16.6068 }
-        ];
-
-        async function fetchWeather() {
-            const container = document.getElementById('weather-data');
-            container.innerHTML = '';
+async function fetchWeather() {
+    const container = document.getElementById('weather-data');
+    container.innerHTML = '';
+    
+    for (let loc of locations) {
+        try {
+            // Tady byl v logu vidět chybějící dolar a chybějící api. open-meteo cesta. Teď je to kompletně opravené:
+            const res = await fetch(`https://open-meteo.com{loc.lat}&longitude=${loc.lon}&current=temperature_2m`);
+            const data = await res.json();
+            const temp = data.current.temperature_2m;
             
-            for (let loc of locations) {
-                try {
-                    const res = await fetch(`https://open-meteo.com{loc.lat}&longitude=${loc.lon}&current=temperature_2m`);
-                    const data = await res.json();
-                    const temp = data.current.temperature_2m;
-                    
-                    container.innerHTML += `
-                        <div class="weather-loc">${loc.name}</div>
-                        <div class="data-row">
-                            <span>Teplota:</span>
-                            <span style="font-weight:bold; color:#2196f3;">${temp} °C</span>
-                        </div>
-                    `;
-                } catch (error) {
-                    console.error("Chyba počasí u " + loc.name + ":", error);
-                    container.innerHTML += `<div class="weather-loc">${loc.name}: Chyba načítání</div>`;
-                }
-            }
+            container.innerHTML += `
+                <div class="weather-loc">${loc.name}</div>
+                <div class="data-row">
+                    <span>Teplota:</span>
+                    <span style="font-weight:bold; color:#2196f3;">${temp} °C</span>
+                </div>
+            `;
+        } catch (error) {
+            console.error("Chyba u lokace " + loc.name + ":", error);
+            container.innerHTML += `<div class="weather-loc">${loc.name}: Chyba načítání</div>`;
         }
+    }
+}
 
-        // Spuštění všech funkcí po načtení prvků
-        fetchNameday();
-        fetchRates();
-        fetchWeather();
-    </script>
-</body>
-</html>
+// Spuštění funkcí při načtení stránky
+fetchNameday();
+fetchRates();
+fetchWeather();

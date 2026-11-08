@@ -55,13 +55,11 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            display: flex;
-            flex-direction: column;
         }
         h2 { margin-bottom: 15px; font-size: 1.2rem; color: var(--accent-color); border-bottom: 1px solid #333; padding-bottom: 5px; }
         .data-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
         .date-big { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
-        iframe { border: none; width: 100%; border-radius: 8px; background: transparent; }
+        .weather-loc { font-weight: bold; margin-top: 10px; color: #fff; }
         @media (max-width: 600px) {
             body { padding: 10px; }
             nav { gap: 10px; }
@@ -78,36 +76,101 @@
     </nav>
 
     <div class="container">
-        <!-- Karta: Datum a Svátek -->
+        <!-- Karta: Kalendář -->
         <div class="card">
             <h2>Kalendář</h2>
             <div class="date-big" id="current-date">-</div>
             <div class="data-row">
                 <span>Dnes má svátek:</span>
-                <!-- Bezpečné načítání jmenin přes iframe widget, který nepodléhá connect-src restrikci -->
-                <iframe src="https://svatkyapi.cz" height="30" scrolling="no" style="margin-top: -5px;"></iframe>
+                <span id="nameday" style="font-weight: bold; color: #ffeb3b;">Načítání...</span>
             </div>
         </div>
 
         <!-- Karta: Kurzy měn -->
         <div class="card">
-            <h2>Kurzy Měn</h2>
-            <!-- Oficiální spolehlivý kurzovní widget zobrazující přepočet EUR a USD vůči CZK -->
-            <iframe src="https://kurzy.cz" height="90" scrolling="no"></iframe>
+            <h2>Kurzy Měn (ČNB)</h2>
+            <div class="data-row">
+                <span>EUR / CZK:</span>
+                <span id="eur-rate" style="font-weight: bold;">Načítání...</span>
+            </div>
+            <div class="data-row">
+                <span>USD / CZK:</span>
+                <span id="usd-rate" style="font-weight: bold;">Načítání...</span>
+            </div>
         </div>
 
         <!-- Karta: Počasí -->
         <div class="card">
-            <h2>Předpověď Počasí (Brno a okolí)</h2>
-            <!-- Profesionální plně responzivní meteo widget, který zobrazuje aktuální stav i předpověď bez CORS chyb -->
-            <iframe src="https://in-pocasi.cz" height="150" scrolling="no"></iframe>
+            <h2>Předpověď Počasí</h2>
+            <div id="weather-data">Načítání počasí...</div>
         </div>
     </div>
 
     <script>
-        // Formátování aktuálního českého data na nástěnce
+        // 1. Nastavení aktuálního data
         var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
+
+        // 2. Pomocná funkce pro bezpečné stažení dat jako externí skript (obchází restrikce GitHubu)
+        function loadExternalData(url) {
+            var script = document.createElement('script');
+            script.src = url;
+            document.head.appendChild(script);
+        }
+
+        // --- ZPRACOVÁNÍ JMENIN ---
+        // SvatkyAPI nativně podporuje callback funkci, která vrátí pouze čisté jméno
+        window.parseNameday = function(data) {
+            document.getElementById('nameday').innerText = data.name;
+        };
+        loadExternalData('https://svatkyapi.cz');
+
+
+        // --- ZPRACOVÁNÍ KURZŮ ---
+        // Použijeme proxy allorigins, ale vyžádáme si JSONP callback
+        window.parseRates = function(response) {
+            try {
+                var data = JSON.parse(response.contents);
+                var euroData = data.rates.find(function(r) { return r.currencyCode === 'EUR'; });
+                var usdData = data.rates.find(function(r) { return r.currencyCode === 'USD'; });
+                
+                if (euroData && usdData) {
+                    document.getElementById('eur-rate').innerText = euroData.rate.toFixed(2) + ' Kč';
+                    document.getElementById('usd-rate').innerText = usdData.rate.toFixed(2) + ' Kč';
+                } else {
+                    document.getElementById('eur-rate').innerText = "Nenalezeno";
+                }
+            } catch(e) {
+                document.getElementById('eur-rate').innerText = "Chyba dat";
+            }
+        };
+        var cnbApiUrl = encodeURIComponent('https://cnb.cz');
+        loadExternalData('https://allorigins.win' + cnbApiUrl + '&callback=parseRates');
+
+
+        // --- ZPRACOVÁNÍ POČASÍ ---
+        // Pro tři požadované lokace sestavíme jeden hromadný dotaz na Open-Meteo, abychom zbytečně nenačítali více skriptů
+        window.parseWeather = function(data) {
+            var container = document.getElementById('weather-data');
+            container.innerHTML = '';
+            
+            var names = ["Vřesovice", "Bartošovice", "Brno"];
+            
+            // Open-Meteo vrátí pole výsledků pro všechny 3 souřadnice v přesném pořadí
+            for (var i = 0; i < data.length; i++) {
+                var locData = data[i];
+                var temp = locData.current.temperature_2m;
+                
+                container.innerHTML += '<div class="weather-loc">' + names[i] + '</div>' +
+                                       '<div class="data-row">' +
+                                       '<span>Teplota:</span>' +
+                                       '<span style="font-weight:bold; color:#2196f3;">' + temp + ' °C</span>' +
+                                       '</div>';
+            }
+        };
+        // Hromadné souřadnice oddělené čárkou (Vřesovice, Bartošovice, Brno)
+        var weatherUrl = 'https://open-meteo.com';
+        loadExternalData(weatherUrl);
     </script>
 </body>
 </html>

@@ -124,20 +124,14 @@
         // 2. Kurzy měn přes oficiální API ČNB + allorigins proxy kvůli CORS bloku v prohlížeči
         async function fetchRates() {
             try {
-                const targetUrl = encodeURIComponent('https://cnb.cz');
-                const res = await fetch(`https://allorigins.win{targetUrl}`);
-                const proxyData = await res.json();
-                const data = JSON.parse(proxyData.contents);
+                const res = await fetch('https://cnb.cz');
+                const data = await res.json();
+                const czkInEur = data.rates.CZK;
+                const usdInEur = data.rates.USD;
+                const czkInUsd = czkInEur / usdInEur;
                 
-                const euroData = data.rates.find(r => r.currencyCode === 'EUR');
-                const usdData = data.rates.find(r => r.currencyCode === 'USD');
-                
-                if (euroData && usdData) {
-                    document.getElementById('eur-rate').innerText = euroData.rate.toFixed(2) + ' Kč';
-                    document.getElementById('usd-rate').innerText = usdData.rate.toFixed(2) + ' Kč';
-                } else {
-                    throw new Error('Měny nenalezeny');
-                }
+                document.getElementById('eur-rate').innerText = czkInEur.toFixed(2) + ' Kč';
+                document.getElementById('usd-rate').innerText = czkInUsd.toFixed(2) + ' Kč';
             } catch {
                 document.getElementById('eur-rate').innerText = "Chyba";
                 document.getElementById('usd-rate').innerText = "Chyba";

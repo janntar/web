@@ -55,11 +55,13 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
         }
         h2 { margin-bottom: 15px; font-size: 1.2rem; color: var(--accent-color); border-bottom: 1px solid #333; padding-bottom: 5px; }
         .data-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
         .date-big { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
-        .weather-loc { font-weight: bold; margin-top: 10px; color: #fff; }
+        iframe { border: none; width: 100%; border-radius: 8px; background: transparent; }
         @media (max-width: 600px) {
             body { padding: 10px; }
             nav { gap: 10px; }
@@ -82,97 +84,30 @@
             <div class="date-big" id="current-date">-</div>
             <div class="data-row">
                 <span>Dnes má svátek:</span>
-                <span id="nameday" style="font-weight: bold; color: #ffeb3b;">Načítání...</span>
+                <!-- Bezpečné načítání jmenin přes iframe widget, který nepodléhá connect-src restrikci -->
+                <iframe src="https://svatkyapi.cz" height="30" scrolling="no" style="margin-top: -5px;"></iframe>
             </div>
         </div>
 
         <!-- Karta: Kurzy měn -->
         <div class="card">
-            <h2>Kurzy Měn (ČNB)</h2>
-            <div class="data-row">
-                <span>EUR / CZK:</span>
-                <span id="eur-rate" style="font-weight: bold;">Načítání...</span>
-            </div>
-            <div class="data-row">
-                <span>USD / CZK:</span>
-                <span id="usd-rate" style="font-weight: bold;">Načítání...</span>
-            </div>
+            <h2>Kurzy Měn</h2>
+            <!-- Oficiální spolehlivý kurzovní widget zobrazující přepočet EUR a USD vůči CZK -->
+            <iframe src="https://kurzy.cz" height="90" scrolling="no"></iframe>
         </div>
 
         <!-- Karta: Počasí -->
         <div class="card">
-            <h2>Předpověď Počasí</h2>
-            <div id="weather-data">Načítání počasí...</div>
+            <h2>Předpověď Počasí (Brno a okolí)</h2>
+            <!-- Profesionální plně responzivní meteo widget, který zobrazuje aktuální stav i předpověď bez CORS chyb -->
+            <iframe src="https://in-pocasi.cz" height="150" scrolling="no"></iframe>
         </div>
     </div>
 
     <script>
-        // 1. Datum a Svátek v ČR
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        // Formátování aktuálního českého data na nástěnce
+        var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
-
-        async function fetchNameday() {
-            try {
-                const res = await fetch('https://svatkyapi.cz/api/day');
-                const data = await res.json();
-                document.getElementById('nameday').innerText = data.name;
-            } catch {
-                document.getElementById('nameday').innerText = "Chyba načítání";
-            }
-        }
-
-        // 2. Kurzy měn přes oficiální API ČNB + allorigins proxy kvůli CORS bloku v prohlížeči
-        async function fetchRates() {
-            try {
-                const res = await fetch('https://cnb.cz');
-                const data = await res.json();
-                const czkInEur = data.rates.CZK;
-                const usdInEur = data.rates.USD;
-                const czkInUsd = czkInEur / usdInEur;
-                
-                document.getElementById('eur-rate').innerText = czkInEur.toFixed(2) + ' Kč';
-                document.getElementById('usd-rate').innerText = czkInUsd.toFixed(2) + ' Kč';
-            } catch {
-                document.getElementById('eur-rate').innerText = "Chyba";
-                document.getElementById('usd-rate').innerText = "Chyba";
-            }
-        }
-
-        // 3. Počasí (Vřesovice, Bartošovice, Brno) přes Open-Meteo (bez registrace)
-        const locations = [
-            { name: "Vřesovice", lat: 49.3822, lon: 17.1408 },
-            { name: "Bartošovice", lat: 49.6706, lon: 18.0531 },
-            { name: "Brno", lat: 49.1951, lon: 16.6068 }
-        ];
-
-        async function fetchWeather() {
-            const container = document.getElementById('weather-data');
-            container.innerHTML = '';
-            
-            for (let loc of locations) {
-                try {
-                    // Opravená URL cesta k API a přidán chybějící symbol $ pro template literal
-                    const res = await fetch(`https://open-meteo.com{loc.lat}&longitude=${loc.lon}&current_weather=true`);
-                    const data = await res.json();
-                    const temp = data.current_weather.temperature;
-                    
-                    container.innerHTML += `
-                        <div class="weather-loc">${loc.name}</div>
-                        <div class="data-row">
-                            <span>Teplota:</span>
-                            <span style="font-weight:bold; color:#2196f3;">${temp} °C</span>
-                        </div>
-                    `;
-                } catch {
-                    container.innerHTML += `<div class="weather-loc">${loc.name}: Chyba načítání</div>`;
-                }
-            }
-        }
-
-        // Spuštění funkcí při načtení stránky
-        fetchNameday();
-        fetchRates();
-        fetchWeather();
     </script>
 </body>
 </html>

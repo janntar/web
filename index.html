@@ -145,34 +145,29 @@
             { name: "Brno", lat: 49.1951, lon: 16.6068 }
         ];
 
-async function fetchWeather() {
-    const container = document.getElementById('weather-data');
-    container.innerHTML = '';
-    
-    for (let loc of locations) {
-        try {
-            // SKUTEČNĚ OPRAVENÁ URL: Přidáno api., /v1/forecast, ?latitude= a symbol $ k oběma proměnným
-            // Použit aktuální parametr 'current=temperature_2m' namísto zastaralého 'current_weather'
-            const res = await fetch(`https://open-meteo.com{loc.lat}&longitude=${loc.lon}&current=temperature_2m`);
-            const data = await res.json();
+        async function fetchWeather() {
+            const container = document.getElementById('weather-data');
+            container.innerHTML = '';
             
-            // Cesta k teplotě se změnila podle nové struktury API na data.current.temperature_2m
-            const temp = data.current.temperature_2m;
-            
-            container.innerHTML += `
-                <div class="weather-loc">${loc.name}</div>
-                <div class="data-row">
-                    <span>Teplota:</span>
-                    <span style="font-weight:bold; color:#2196f3;">${temp} °C</span>
-                </div>
-            `;
-        } catch (error) {
-            console.error("Chyba u lokace " + loc.name + ":", error);
-            container.innerHTML += `<div class="weather-loc">${loc.name}: Chyba načítání</div>`;
+            for (let loc of locations) {
+                try {
+                    // Opravená URL cesta k API a přidán chybějící symbol $ pro template literal
+                    const res = await fetch(`https://open-meteo.com{loc.lat}&longitude=${loc.lon}&current_weather=true`);
+                    const data = await res.json();
+                    const temp = data.current_weather.temperature;
+                    
+                    container.innerHTML += `
+                        <div class="weather-loc">${loc.name}</div>
+                        <div class="data-row">
+                            <span>Teplota:</span>
+                            <span style="font-weight:bold; color:#2196f3;">${temp} °C</span>
+                        </div>
+                    `;
+                } catch {
+                    container.innerHTML += `<div class="weather-loc">${loc.name}: Chyba načítání</div>`;
+                }
+            }
         }
-    }
-}
-
         // Spuštění funkcí při načtení stránky
         fetchNameday();
         fetchRates();

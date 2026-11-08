@@ -139,27 +139,25 @@
 //        }
 async function fetchRates() {
     try {
-        // Volání oficiálního JSON API České národní banky
-        const res = await fetch('https://cnb.cz');
-        const data = await res.json();
+        // Volání přes CORS proxy, která vyřeší blokování v prohlížeči
+        const targetUrl = encodeURIComponent('https://cnb.cz');
+        const res = await fetch(`https://allorigins.win{targetUrl}`);
+        const proxyData = await res.json();
         
-        // Vyhledání konkrétních měn v poli kurzů
+        // Data z proxy jsou zabalená v textovém formátu, musíme je naparsovat na JSON
+        const data = JSON.parse(proxyData.contents);
+        
         const euroData = data.rates.find(r => r.currencyCode === 'EUR');
         const usdData = data.rates.find(r => r.currencyCode === 'USD');
         
         if (euroData && usdData) {
-            // API ČNB vrací kurz přímo v Kč za 1 jednotku měny (rate)
-            const eurRate = euroData.rate;
-            const usdRate = usdData.rate;
-            
-            // Vypsání výsledků do HTML elementů
-            document.getElementById('eur-rate').innerText = eurRate.toFixed(2) + ' Kč';
-            document.getElementById('usd-rate').innerText = usdRate.toFixed(2) + ' Kč';
+            document.getElementById('eur-rate').innerText = euroData.rate.toFixed(2) + ' Kč';
+            document.getElementById('usd-rate').innerText = usdData.rate.toFixed(2) + ' Kč';
         } else {
-            throw new Error('Měny nebyly v datech nalezeny');
+            throw new Error('Měny nenalezeny');
         }
-    } catch {
-        // V případě chyby sítě nebo parsování se zobrazí chybová hláška
+    } catch (error) {
+        console.error("Podrobná chyba:", error);
         document.getElementById('eur-rate').innerText = "Chyba";
         document.getElementById('usd-rate').innerText = "Chyba";
     }

@@ -151,7 +151,7 @@
             
             for (let loc of locations) {
                 try {
-                    const res = await fetch(`https://open-meteo.com{loc.lat}&longitude=${loc.lon}&current_weather=true`);
+                    const res = await fetch(`https://api.open-meteo.com/v1/{loc.lat}&longitude=${loc.lon}&current_weather=true`);
                     const data = await res.json();
                     const temp = data.current_weather.temperature;
                     const wind = data.current_weather.windspeed;

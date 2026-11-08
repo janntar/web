@@ -139,12 +139,18 @@
         }
 
         // 3. Počasí (Vřesovice, Bartošovice, Brno) přes Open-Meteo (bez registrace)
-          async function fetchWeather() {
-           const container = document.getElementById('weather-data');
-           container.innerHTML = '';
+        const locations = [
+            { name: "Vřesovice", lat: 49.3822, lon: 17.1408 },
+            { name: "Bartošovice", lat: 49.6706, lon: 18.0531 },
+            { name: "Brno", lat: 49.1951, lon: 16.6068 }
+        ];
+
+async function fetchWeather() {
+    const container = document.getElementById('weather-data');
+    container.innerHTML = '';
     
-         for (let loc of locations) {
-           try {
+    for (let loc of locations) {
+        try {
             // SKUTEČNĚ OPRAVENÁ URL: Přidáno api., /v1/forecast, ?latitude= a symbol $ k oběma proměnným
             // Použit aktuální parametr 'current=temperature_2m' namísto zastaralého 'current_weather'
             const res = await fetch(`https://open-meteo.com{loc.lat}&longitude=${loc.lon}&current=temperature_2m`);
@@ -166,6 +172,7 @@
         }
     }
 }
+
         // Spuštění funkcí při načtení stránky
         fetchNameday();
         fetchRates();

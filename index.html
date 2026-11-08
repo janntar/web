@@ -113,7 +113,7 @@
 
         async function fetchNameday() {
             try {
-                const res = await fetch('https://svatkyapi.xyz');
+                const res = await fetch('https://tomasmotl.cz/api/svatky/dnes');
                 const data = await res.json();
                 document.getElementById('nameday').innerText = data.name;
             } catch {

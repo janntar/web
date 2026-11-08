@@ -122,22 +122,48 @@
         }
 
         // 2. Kurzy měn přes bezplatné API
-        async function fetchRates() {
-            try {
-                const res = await fetch('https://cnb.cz');
-                const data = await res.json();
-                const czkInEur = data.rates.CZK;
-                const usdInEur = data.rates.USD;
-                const czkInUsd = czkInEur / usdInEur;
-                
-                document.getElementById('eur-rate').innerText = czkInEur.toFixed(2) + ' Kč';
-                document.getElementById('usd-rate').innerText = czkInUsd.toFixed(2) + ' Kč';
-            } catch {
-                document.getElementById('eur-rate').innerText = "Chyba";
-                document.getElementById('usd-rate').innerText = "Chyba";
-            }
+//       async function fetchRates() {
+//            try {
+//                const res = await fetch('https://cnb.cz');
+//                const data = await res.json();
+//                const czkInEur = data.rates.CZK;
+//                const usdInEur = data.rates.USD;
+//                const czkInUsd = czkInEur / usdInEur;
+//                
+//                document.getElementById('eur-rate').innerText = czkInEur.toFixed(2) + ' Kč';
+//                document.getElementById('usd-rate').innerText = czkInUsd.toFixed(2) + ' Kč';
+//            } catch {
+//                document.getElementById('eur-rate').innerText = "Chyba";
+//                document.getElementById('usd-rate').innerText = "Chyba";
+//            }
+//        }
+async function fetchRates() {
+    try {
+        // Volání oficiálního JSON API České národní banky
+        const res = await fetch('https://cnb.cz');
+        const data = await res.json();
+        
+        // Vyhledání konkrétních měn v poli kurzů
+        const euroData = data.rates.find(r => r.currencyCode === 'EUR');
+        const usdData = data.rates.find(r => r.currencyCode === 'USD');
+        
+        if (euroData && usdData) {
+            // API ČNB vrací kurz přímo v Kč za 1 jednotku měny (rate)
+            const eurRate = euroData.rate;
+            const usdRate = usdData.rate;
+            
+            // Vypsání výsledků do HTML elementů
+            document.getElementById('eur-rate').innerText = eurRate.toFixed(2) + ' Kč';
+            document.getElementById('usd-rate').innerText = usdRate.toFixed(2) + ' Kč';
+        } else {
+            throw new Error('Měny nebyly v datech nalezeny');
         }
-
+    } catch {
+        // V případě chyby sítě nebo parsování se zobrazí chybová hláška
+        document.getElementById('eur-rate').innerText = "Chyba";
+        document.getElementById('usd-rate').innerText = "Chyba";
+    }
+}
         // 3. Počasí (Vřesovice, Bartošovice, Brno) přes Open-Meteo (bez registrace)
         const locations = [
             { name: "Vřesovice", lat: 49.3822, lon: 17.1408 },

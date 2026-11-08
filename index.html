@@ -151,30 +151,29 @@
         fetchRates();
 
         // 4. Předpověď počasí přes Open-Meteo (Přímé volání s povoleným CORS)
-        async function fetchWeather() {
-            var container = document.getElementById('weather-data');
-            container.innerHTML = '';
+async function fetchWeather() {
+    var container = document.getElementById('weather-data');
+    container.innerHTML = '';
+    
+    for (var i = 0; i < locations.length; i++) {
+        var loc = locations[i];
+        try {
+            var url = 'https://open-meteo.com' + loc.lat + '&longitude=' + loc.lon + '&current=temperature_2m';
+            var res = await fetch(url);
+            var data = await res.json();
+            var temp = data.current.temperature_2m;
             
-            var names = ["Vřesovice", "Bartošovice", "Brno"];
-            var url = 'https://open-meteo.com';
-            
-            try {
-                var res = await fetch(url);
-                var data = await res.json();
-                
-                for (var i = 0; i < data.length; i++) {
-                    var temp = data[i].current.temperature_2m;
-                    container.innerHTML += '<div class="weather-loc">' + names[i] + '</div>' +
-                                           '<div class="data-row">' +
-                                           '<span>Teplota:</span>' +
-                                           '<span style="font-weight:bold; color:#2196f3;">' + temp + ' °C</span>' +
-                                           '</div>';
-                }
-            } catch (error) {
-                container.innerHTML = '<div class="weather-loc">Chyba stahování počasí</div>';
-            }
+            container.innerHTML += '<div class="weather-loc">' + loc.name + '</div>' +
+                                   '<div class="data-row">' +
+                                   '<span>Teplota:</span>' +
+                                   '<span style="font-weight:bold; color:#2196f3;">' + temp + ' °C</span>' +
+                                   '</div>';
+        } catch (error) {
+            container.innerHTML += '<div class="weather-loc">' + loc.name + ': Chyba načítání</div>';
         }
-        fetchWeather();
+    }
+}
+fetchWeather();
     </script>
 </body>
 </html>

@@ -152,7 +152,6 @@
             for (var i = 0; i < locations.length; i++) {
                 var loc = locations[i];
                 try {
-                    // Striktně opravené a explicitní skládání textu URL adresy
                     var url = 'https://open-meteo.com' + loc.lat + '&longitude=' + loc.lon + '&current=temperature_2m,wind_speed_10m';
                     var res = await fetch(url);
                     var data = await res.json();

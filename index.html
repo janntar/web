@@ -124,7 +124,7 @@
         // 2. Kurzy měn přes bezplatné API
         async function fetchRates() {
             try {
-                const res = await fetch('https://er-api.com');
+                const res = await fetch('https://cnb.cz');
                 const data = await res.json();
                 const czkInEur = data.rates.CZK;
                 const usdInEur = data.rates.USD;

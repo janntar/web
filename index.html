@@ -76,19 +76,19 @@
     </nav>
 
     <div class="container">
-        <!-- Karta: Kalendář -->
+        <!-- Karta: Datum a Svátek -->
         <div class="card">
             <h2>Kalendář</h2>
             <div class="date-big" id="current-date">-</div>
             <div class="data-row">
-                <span>Státní svátek:</span>
-                <span id="holiday-name" style="font-weight: bold; color: #ffeb3b;">Zjišťování...</span>
+                <span>Dnes má svátek:</span>
+                <span id="nameday" style="font-weight: bold; color: #ffeb3b;">Načítání...</span>
             </div>
         </div>
 
         <!-- Karta: Kurzy měn -->
         <div class="card">
-            <h2>Kurzy Měn</h2>
+            <h2>Kurzy Měn (ČNB)</h2>
             <div class="data-row">
                 <span>EUR / CZK:</span>
                 <span id="eur-rate" style="font-weight: bold;">Načítání...</span>
@@ -107,73 +107,72 @@
     </div>
 
     <script>
-        // 1. Zobrazení aktuálního českého data
-        var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        var todayDate = new Date();
-        document.getElementById('current-date').innerText = todayDate.toLocaleDateString('cs-CZ', options);
+        // 1. Datum a Svátek v ČR
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
 
-        // 2. Kontrola státních svátků přes stabilní OpenHolidays API (Nativní CORS podpora)
-        async function fetchHoliday() {
+        async function fetchNameday() {
             try {
-                var formattedDate = todayDate.toISOString().split('T')[0]; // Formát YYYY-MM-DD
-                var url = 'https://openholidaysapi.org' + formattedDate + '&validTo=' + formattedDate + '&languageCode=CS';
-                var res = await fetch(url);
-                var data = await res.json();
-                
-                if (data && data.length > 0) {
-                    document.getElementById('holiday-name').innerText = data[0].name[0].text;
-                } else {
-                    document.getElementById('holiday-name').innerText = "Dnes není státní svátek";
-                }
-            } catch (e) {
-                document.getElementById('holiday-name').innerText = "Nedostupné";
+                const res = await fetch('https://tomasmotl.cz/api/svatky/dnes');
+                const data = await res.json();
+                document.getElementById('nameday').innerText = data.name;
+            } catch {
+                document.getElementById('nameday').innerText = "Chyba načítání";
             }
         }
-        fetchHoliday();
 
-        // 3. Kurzy měn přes otevřené Frankfurter API (Bez proxy serverů a CORS chyb)
+        // 2. Kurzy měn přes bezplatné API
         async function fetchRates() {
             try {
-                var res = await fetch('https://frankfurter.dev');
-                var data = await res.json();
-                
-                var czkInEur = data.rates.CZK;
-                var usdInEur = data.rates.USD;
-                var czkInUsd = czkInEur / usdInEur;
+                const res = await fetch('https://er-api.com');
+                const data = await res.json();
+                const czkInEur = data.rates.CZK;
+                const usdInEur = data.rates.USD;
+                const czkInUsd = czkInEur / usdInEur;
                 
                 document.getElementById('eur-rate').innerText = czkInEur.toFixed(2) + ' Kč';
                 document.getElementById('usd-rate').innerText = czkInUsd.toFixed(2) + ' Kč';
-            } catch (error) {
-                document.getElementById('eur-rate').innerText = "Chyba sítě";
-                document.getElementById('usd-rate').innerText = "Chyba sítě";
+            } catch {
+                document.getElementById('eur-rate').innerText = "Chyba";
+                document.getElementById('usd-rate').innerText = "Chyba";
             }
         }
-        fetchRates();
 
-        // 4. Předpověď počasí přes Open-Meteo (Přímé volání s povoleným CORS)
-async function fetchWeather() {
-    var container = document.getElementById('weather-data');
-    container.innerHTML = '';
-    
-    for (var i = 0; i < locations.length; i++) {
-        var loc = locations[i];
-        try {
-            var url = 'https://open-meteo.com' + loc.lat + '&longitude=' + loc.lon + '&current=temperature_2m';
-            var res = await fetch(url);
-            var data = await res.json();
-            var temp = data.current.temperature_2m;
+        // 3. Počasí (Vřesovice, Bartošovice, Brno) přes Open-Meteo (bez registrace)
+        const locations = [
+            { name: "Vřesovice u Prostějova", lat: 49.3822, lon: 17.1408 },
+            { name: "Bartošovice (NJ)", lat: 49.6706, lon: 18.0531 },
+            { name: "Brno", lat: 49.1951, lon: 16.6068 }
+        ];
+
+        async function fetchWeather() {
+            const container = document.getElementById('weather-data');
+            container.innerHTML = '';
             
-            container.innerHTML += '<div class="weather-loc">' + loc.name + '</div>' +
-                                   '<div class="data-row">' +
-                                   '<span>Teplota:</span>' +
-                                   '<span style="font-weight:bold; color:#2196f3;">' + temp + ' °C</span>' +
-                                   '</div>';
-        } catch (error) {
-            container.innerHTML += '<div class="weather-loc">' + loc.name + ': Chyba načítání</div>';
+            for (let loc of locations) {
+                try {
+                    const res = await fetch(`https://open-meteo.com{loc.lat}&longitude=${loc.lon}&current_weather=true`);
+                    const data = await res.json();
+                    const temp = data.current_weather.temperature;
+                    const wind = data.current_weather.windspeed;
+                    
+                    container.innerHTML += `
+                        <div class="weather-loc">${loc.name}</div>
+                        <div class="data-row">
+                            <span>Teplota:</span>
+                            <span style="font-weight:bold; color:#2196f3;">${temp} °C</span>
+                        </div>
+                    `;
+                } catch {
+                    container.innerHTML += `<div class="weather-loc">${loc.name}: Chyba načítání</div>`;
+                }
+            }
         }
-    }
-}
-fetchWeather();
+
+        // Spuštění funkcí při načtení stránky
+        fetchNameday();
+        fetchRates();
+        fetchWeather();
     </script>
 </body>
 </html>

@@ -81,8 +81,8 @@
             <h2>Kalendář</h2>
             <div class="date-big" id="current-date">-</div>
             <div class="data-row">
-                <span>Dnes má svátek:</span>
-                <span id="nameday" style="font-weight: bold; color: #ffeb3b;">Načítání...</span>
+                <span>Státní svátek:</span>
+                <span id="holiday-name" style="font-weight: bold; color: #ffeb3b;">Zjišťování...</span>
             </div>
         </div>
 
@@ -109,27 +109,29 @@
     <script>
         // 1. Zobrazení aktuálního českého data
         var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
+        var todayDate = new Date();
+        document.getElementById('current-date').innerText = todayDate.toLocaleDateString('cs-CZ', options);
 
-        // Pomocná funkce pro bezpečné vložení skriptu na stránku
-        function injectScript(url) {
-            var script = document.createElement('script');
-            script.src = url;
-            document.head.appendChild(script);
-        }
-
-        // --- 2. SVÁTEK (PŘES PROXY ALLORIGINS V REŽIMU JSONP) ---
-        window.handleNameday = function(response) {
+        // 2. Kontrola státních svátků přes stabilní OpenHolidays API (Nativní CORS podpora)
+        async function fetchHoliday() {
             try {
-                var data = JSON.parse(response.contents);
-                document.getElementById('nameday').innerText = data.name;
-            } catch(e) {
-                document.getElementById('nameday').innerText = "Chyba stahování jmenin";
+                var formattedDate = todayDate.toISOString().split('T')[0]; // Formát YYYY-MM-DD
+                var url = 'https://openholidaysapi.org' + formattedDate + '&validTo=' + formattedDate + '&languageCode=CS';
+                var res = await fetch(url);
+                var data = await res.json();
+                
+                if (data && data.length > 0) {
+                    document.getElementById('holiday-name').innerText = data[0].name[0].text;
+                } else {
+                    document.getElementById('holiday-name').innerText = "Dnes není státní svátek";
+                }
+            } catch (e) {
+                document.getElementById('holiday-name').innerText = "Nedostupné";
             }
-        };
-        injectScript('https://allorigins.win' + encodeURIComponent('https://svatkyapi.cz') + '&callback=handleNameday');
+        }
+        fetchHoliday();
 
-        // --- 3. KURZY MĚN (PŘES NEZÁVISLÉ FRANKFURTER API, KTERÉ MÁ NATIVNÍ PODPORU PRO PROHLÍŽEČE) ---
+        // 3. Kurzy měn přes otevřené Frankfurter API (Bez proxy serverů a CORS chyb)
         async function fetchRates() {
             try {
                 var res = await fetch('https://frankfurter.dev');
@@ -148,14 +150,18 @@
         }
         fetchRates();
 
-        // --- 4. PŘEDPOVĚĎ POČASÍ (PŘES OPEN-METEO, KTERÉ MÁ CIZÍ CORS POVOLENÉ) ---
+        // 4. Předpověď počasí přes Open-Meteo (Přímé volání s povoleným CORS)
         async function fetchWeather() {
             var container = document.getElementById('weather-data');
             container.innerHTML = '';
             
             var names = ["Vřesovice", "Bartošovice", "Brno"];
             var url = 'https://open-meteo.com';
-            
+            ‘src’ attribute of <script> element is not a valid URI: “https://allorigins.winhttps%3A%2F%2Fsvatkyapi.cz&callback=handleNameday” index.html:1:1
+GET
+https://janntar.github.io/favicon.ico
+[HTTP/2 404  0ms]
+
             try {
                 var res = await fetch(url);
                 var data = await res.json();

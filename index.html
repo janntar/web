@@ -153,7 +153,7 @@
                 var loc = locations[i];
                 try {
                     // Cesta k API sestavená bezpečně pomocí operátoru +, což zabraňuje 404 chybám
-                    var url = 'https://open-meteo.com' + loc.lat + '&longitude=' + loc.lon + '&current=temperature_2m,wind_speed_10m';
+                    var url = 'https://api.open-meteo.com' + loc.lat + '&longitude=' + loc.lon + '&current=temperature_2m,wind_speed_10m';
                     var res = await fetch(url);
                     var data = await res.json();
                     

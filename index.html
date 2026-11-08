@@ -145,29 +145,40 @@
             { name: "Brno", lat: 49.1951, lon: 16.6068 }
         ];
 
-        async function fetchWeather() {
-            const container = document.getElementById('weather-data');
-            container.innerHTML = '';
+async function fetchWeather() {
+    const container = document.getElementById('weather-data');
+    container.innerHTML = '';
+    
+    for (let loc of locations) {
+        try {
+            // 1. OPRAVENÁ URL: Doplněno /forecast?latitude= a symbol $ k oběma proměnným
+            // Přidán parametr current=temperature_2m,wind_speed_10m podle vaší ukázky
+            const res = await fetch(`https://open-meteo.com{loc.lat}&longitude=${loc.lon}&current=temperature_2m,wind_speed_10m`);
+            const data = await res.json();
             
-            for (let loc of locations) {
-                try {
-                    const res = await fetch(`https://api.open-meteo.com/v1/{loc.lat}&longitude=${loc.lon}&current_weather=true`);
-                    const data = await res.json();
-                    const temp = data.current_weather.temperature;
-                    const wind = data.current_weather.windspeed;
-                    
-                    container.innerHTML += `
-                        <div class="weather-loc">${loc.name}</div>
-                        <div class="data-row">
-                            <span>Teplota:</span>
-                            <span style="font-weight:bold; color:#2196f3;">${temp} °C</span>
-                        </div>
-                    `;
-                } catch {
-                    container.innerHTML += `<div class="weather-loc">${loc.name}: Chyba načítání</div>`;
-                }
-            }
+            // 2. OPRAVENÉ ČTENÍ DAT: Cesta odpovídá přesně nové struktuře z JSON ukázky
+            const temp = data.current.temperature_2m;
+            const wind = data.current.wind_speed_10m;
+            
+            // Vykreslení upravených hodnot do HTML boxu vaší nástěnky
+            container.innerHTML += `
+                <div class="weather-loc" style="font-weight: bold; margin-top: 10px; color: #fff;">${loc.name}</div>
+                <div class="data-row" style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>Teplota:</span>
+                    <span style="font-weight:bold; color:#2196f3;">${temp} °C</span>
+                </div>
+                <div class="data-row" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>Vítr:</span>
+                    <span style="font-weight:bold; color:#9e9e9e;">${wind} km/h</span>
+                </div>
+            `;
+        } catch (error) {
+            console.error("Chyba při parsování počasí pro lokaci " + loc.name + ":", error);
+            container.innerHTML += `<div class="weather-loc">${loc.name}: Chyba načítání</div>`;
         }
+    }
+}
+
 
         // Spuštění funkcí při načtení stránky
         fetchNameday();

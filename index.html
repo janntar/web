@@ -152,16 +152,22 @@
             for (var i = 0; i < locations.length; i++) {
                 var loc = locations[i];
                 try {
-                    // Sestavení URL pomocí operátoru + bezpečně předchází 404 chybám parsování
-                    var url = 'https://open-meteo.com' + loc.lat + '&longitude=' + loc.lon + '&current=temperature_2m';
+                    // Cesta k API sestavená bezpečně pomocí operátoru +, což zabraňuje 404 chybám
+                    var url = 'https://open-meteo.com' + loc.lat + '&longitude=' + loc.lon + '&current=temperature_2m,wind_speed_10m';
                     var res = await fetch(url);
                     var data = await res.json();
+                    
                     var temp = data.current.temperature_2m;
+                    var wind = data.current.wind_speed_10m;
                     
                     container.innerHTML += '<div class="weather-loc">' + loc.name + '</div>' +
                                            '<div class="data-row">' +
                                            '<span>Teplota:</span>' +
                                            '<span style="font-weight:bold; color:#2196f3;">' + temp + ' °C</span>' +
+                                           '</div>' +
+                                           '<div class="data-row">' +
+                                           '<span>Vítr:</span>' +
+                                           '<span style="font-weight:bold; color:#b3b3b3;">' + wind + ' km/h</span>' +
                                            '</div>';
                 } catch (error) {
                     container.innerHTML += '<div class="weather-loc">' + loc.name + ': Chyba načítání</div>';

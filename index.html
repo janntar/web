@@ -107,28 +107,32 @@
     </div>
 
     <script>
-        // 1. Nastavení aktuálního data
+        // 1. Nastavení aktuálního českého data na obrazovce
         var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
 
-        // 2. Pomocná funkce pro bezpečné stažení dat jako externí skript (obchází restrikce GitHubu)
-        function loadExternalData(url) {
+        // 2. Pomocná funkce pro bezpečné stahování dat přes JSONP proxy (obchází CSP restrikce webu)
+        function fetchViaJsonpProxy(targetUrl, callbackName) {
+            var proxyUrl = 'https://allorigins.win' + encodeURIComponent(targetUrl) + '&callback=' + callbackName;
             var script = document.createElement('script');
-            script.src = url;
+            script.src = proxyUrl;
             document.head.appendChild(script);
         }
 
         // --- ZPRACOVÁNÍ JMENIN ---
-        // SvatkyAPI nativně podporuje callback funkci, která vrátí pouze čisté jméno
-        window.parseNameday = function(data) {
-            document.getElementById('nameday').innerText = data.name;
+        window.handleNameday = function(response) {
+            try {
+                var data = JSON.parse(response.contents);
+                document.getElementById('nameday').innerText = data.name;
+            } catch(e) {
+                document.getElementById('nameday').innerText = "Chyba zpracování";
+            }
         };
-        loadExternalData('https://svatkyapi.cz');
+        fetchViaJsonpProxy('https://svatkyapi.cz', 'handleNameday');
 
 
         // --- ZPRACOVÁNÍ KURZŮ ---
-        // Použijeme proxy allorigins, ale vyžádáme si JSONP callback
-        window.parseRates = function(response) {
+        window.handleRates = function(response) {
             try {
                 var data = JSON.parse(response.contents);
                 var euroData = data.rates.find(function(r) { return r.currencyCode === 'EUR'; });
@@ -138,39 +142,41 @@
                     document.getElementById('eur-rate').innerText = euroData.rate.toFixed(2) + ' Kč';
                     document.getElementById('usd-rate').innerText = usdData.rate.toFixed(2) + ' Kč';
                 } else {
-                    document.getElementById('eur-rate').innerText = "Nenalezeno";
+                    document.getElementById('eur-rate').innerText = "Měny nenalezeny";
                 }
-            } catch(e) {
-                document.getElementById('eur-rate').innerText = "Chyba dat";
+            } catch (e) {
+                document.getElementById('eur-rate').innerText = "Chyba parsování";
+                document.getElementById('usd-rate').innerText = "Chyba parsování";
             }
         };
-        var cnbApiUrl = encodeURIComponent('https://cnb.cz');
-        loadExternalData('https://allorigins.win' + cnbApiUrl + '&callback=parseRates');
+        fetchViaJsonpProxy('https://cnb.cz', 'handleRates');
 
 
         // --- ZPRACOVÁNÍ POČASÍ ---
-        // Pro tři požadované lokace sestavíme jeden hromadný dotaz na Open-Meteo, abychom zbytečně nenačítali více skriptů
-        window.parseWeather = function(data) {
-            var container = document.getElementById('weather-data');
-            container.innerHTML = '';
-            
-            var names = ["Vřesovice", "Bartošovice", "Brno"];
-            
-            // Open-Meteo vrátí pole výsledků pro všechny 3 souřadnice v přesném pořadí
-            for (var i = 0; i < data.length; i++) {
-                var locData = data[i];
-                var temp = locData.current.temperature_2m;
+        window.handleWeather = function(response) {
+            try {
+                var data = JSON.parse(response.contents);
+                var container = document.getElementById('weather-data');
+                container.innerHTML = '';
                 
-                container.innerHTML += '<div class="weather-loc">' + names[i] + '</div>' +
-                                       '<div class="data-row">' +
-                                       '<span>Teplota:</span>' +
-                                       '<span style="font-weight:bold; color:#2196f3;">' + temp + ' °C</span>' +
-                                       '</div>';
+                var names = ["Vřesovice", "Bartošovice", "Brno"];
+                
+                for (var i = 0; i < data.length; i++) {
+                    var locData = data[i];
+                    var temp = locData.current.temperature_2m;
+                    
+                    container.innerHTML += '<div class="weather-loc">' + names[i] + '</div>' +
+                                           '<div class="data-row">' +
+                                           '<span>Teplota:</span>' +
+                                           '<span style="font-weight:bold; color:#2196f3;">' + temp + ' °C</span>' +
+                                           '</div>';
+                }
+            } catch (e) {
+                document.getElementById('weather-data').innerText = "Chyba stahování počasí";
             }
         };
-        // Hromadné souřadnice oddělené čárkou (Vřesovice, Bartošovice, Brno)
-        var weatherUrl = 'https://open-meteo.com';
-        loadExternalData(weatherUrl);
+        var weatherTarget = 'https://open-meteo.com';
+        fetchViaJsonpProxy(weatherTarget, 'handleWeather');
     </script>
 </body>
 </html>

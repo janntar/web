@@ -102,15 +102,16 @@
             <div id="weather-data">Načítání počasí...</div>
         </div>
     </div>
-
     <script>
-        var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        // 1. Datum
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
 
+        // 2. Svátek (použijeme spolehlivější netlify endpoint ze svatkyapi)
         async function fetchNameday() {
             try {
-                var res = await fetch('https://svatkyapi.cz/api/day');
-                var data = await res.json();
+                const res = await fetch('https://netlify.app');
+                const data = await res.json();
                 document.getElementById('nameday').innerText = data.name;
             } catch (e) {
                 document.getElementById('nameday').innerText = "Chyba načítání";
@@ -118,59 +119,68 @@
         }
         fetchNameday();
 
+        // 3. Kurzy měn (Frankfurter API funguje bez CORS chyb)
         async function fetchRates() {
             try {
-                var res = await fetch('https://frankfurter.dev');
-                var data = await res.json();
-                
-                var czkInEur = data.rates.CZK;
-                var usdInEur = data.rates.USD;
-                var czkInUsd = czkInEur / usdInEur;
+                const res = await fetch('https://frankfurter.dev');
+                const data = await res.json();
+                const czkInEur = data.rates.CZK;
+                const usdInEur = data.rates.USD;
+                const czkInUsd = czkInEur / usdInEur;
                 
                 document.getElementById('eur-rate').innerText = czkInEur.toFixed(2) + ' Kč';
                 document.getElementById('usd-rate').innerText = czkInUsd.toFixed(2) + ' Kč';
-            } catch (error) {
-                document.getElementById('eur-rate').innerText = "Chyba sítě";
-                document.getElementById('usd-rate').innerText = "Chyba sítě";
+            } catch (e) {
+                document.getElementById('eur-rate').innerText = "Chyba";
+                document.getElementById('usd-rate').innerText = "Chyba";
             }
         }
         fetchRates();
 
-        var locations = [
+        // 4. Počasí (URL sestavená po částech, aby se při kopírování nepoškodila)
+        const locations = [
             { name: "Vřesovice u Prostějova", lat: 49.3822, lon: 17.1408 },
             { name: "Bartošovice (NJ)", lat: 49.6706, lon: 18.0531 },
             { name: "Brno", lat: 49.1951, lon: 16.6068 }
         ];
 
         async function fetchWeather() {
-            var container = document.getElementById('weather-data');
+            const container = document.getElementById('weather-data');
             container.innerHTML = '';
             
-            for (var i = 0; i < locations.length; i++) {
-                var loc = locations[i];
+            // Rozdělení URL na bezpečné části
+            const base = ['https:/', '://open-meteo.com', 'v1', 'forecast'].join('/');
+            
+            for (const loc of locations) {
                 try {
-                    var url = 'https://open-meteo.com' + loc.lat + '&longitude=' + loc.lon + '&current=temperature_2m,wind_speed_10m';
-                    var res = await fetch(url);
-                    var data = await res.json();
+                    const params = new URLSearchParams({
+                        latitude: loc.lat,
+                        longitude: loc.lon,
+                        current: 'temperature_2m,wind_speed_10m'
+                    });
                     
-                    var temp = data.current.temperature_2m;
-                    var wind = data.current.wind_speed_10m;
+                    const res = await fetch(base + '?' + params.toString());
+                    const data = await res.json();
                     
-                    container.innerHTML += '<div class="weather-loc">' + loc.name + '</div>' +
-                                           '<div class="data-row">' +
-                                           '<span>Teplota:</span>' +
-                                           '<span style="font-weight:bold; color:#2196f3;">' + temp + ' °C</span>' +
-                                           '</div>' +
-                                           '<div class="data-row">' +
-                                           '<span>Vítr:</span>' +
-                                           '<span style="font-weight:bold; color:#b3b3b3;">' + wind + ' km/h</span>' +
-                                           '</div>';
-                } catch (error) {
-                    container.innerHTML += '<div class="weather-loc">' + loc.name + ': Chyba načítání</div>';
+                    container.innerHTML += `
+                        <div class="weather-loc">${loc.name}</div>
+                        <div class="data-row">
+                            <span>Teplota:</span>
+                            <span style="font-weight:bold; color:#2196f3;">${data.current.temperature_2m} °C</span>
+                        </div>
+                        <div class="data-row">
+                            <span>Vítr:</span>
+                            <span style="font-weight:bold; color:#b3b3b3;">${data.current.wind_speed_10m} km/h</span>
+                        </div>
+                    `;
+                } catch (e) {
+                    container.innerHTML += `<div class="weather-loc">${loc.name}: Chyba načítání</div>`;
                 }
             }
         }
         fetchWeather();
     </script>
+
+
 </body>
 </html>

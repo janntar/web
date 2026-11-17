@@ -107,10 +107,14 @@
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('cs-CZ', options);
 
-        // 2. Svátek (použijeme spolehlivější netlify endpoint ze svatkyapi)
+        // Pomocná funkce pro bezpečné složení URL bez poškození editorem
+        const p = 'https:' + '//';
+
+        // 2. Svátek (složeno z částí, aby editor neořezal subdoménu a cestu)
         async function fetchNameday() {
             try {
-                const res = await fetch('https://netlify.app');
+                const url = p + 'svatkyapi' + '.cz' + '/api/day';
+                const res = await fetch(url);
                 const data = await res.json();
                 document.getElementById('nameday').innerText = data.name;
             } catch (e) {
@@ -119,10 +123,11 @@
         }
         fetchNameday();
 
-        // 3. Kurzy měn (Frankfurter API funguje bez CORS chyb)
+        // 3. Kurzy měn (Frankfurter API složené po částech)
         async function fetchRates() {
             try {
-                const res = await fetch('https://frankfurter.dev');
+                const url = p + 'api.' + 'frankfurter.dev' + '/v1/latest?symbols=CZK,USD';
+                const res = await fetch(url);
                 const data = await res.json();
                 const czkInEur = data.rates.CZK;
                 const usdInEur = data.rates.USD;
@@ -137,7 +142,7 @@
         }
         fetchRates();
 
-        // 4. Počasí (URL sestavená po částech, aby se při kopírování nepoškodila)
+        // 4. Počasí (Open-Meteo složené po částech)
         const locations = [
             { name: "Vřesovice u Prostějova", lat: 49.3822, lon: 17.1408 },
             { name: "Bartošovice (NJ)", lat: 49.6706, lon: 18.0531 },
@@ -147,19 +152,12 @@
         async function fetchWeather() {
             const container = document.getElementById('weather-data');
             container.innerHTML = '';
-            
-            // Rozdělení URL na bezpečné části
-            const base = ['https:/', '://open-meteo.com', 'v1', 'forecast'].join('/');
+            const baseUrl = p + 'api.' + 'open-meteo.com' + '/v1/forecast';
             
             for (const loc of locations) {
                 try {
-                    const params = new URLSearchParams({
-                        latitude: loc.lat,
-                        longitude: loc.lon,
-                        current: 'temperature_2m,wind_speed_10m'
-                    });
-                    
-                    const res = await fetch(base + '?' + params.toString());
+                    const url = baseUrl + '?latitude=' + loc.lat + '&longitude=' + loc.lon + '&current=temperature_2m,wind_speed_10m';
+                    const res = await fetch(url);
                     const data = await res.json();
                     
                     container.innerHTML += `
@@ -180,7 +178,6 @@
         }
         fetchWeather();
     </script>
-
 
 </body>
 </html>
